@@ -6,38 +6,40 @@ import java.lang.foreign.ValueLayout;
 
 public class DB {
 
+    // This is a off-heap data structure that stores a list of variable-length strings as bytes.
+    private final KeyStore keyStore;
     private final Arena arena;
     private final MemorySegment valueSegment;
-    private final MemorySegment keySegment;
-    private long position;
-    private ValueLayout layout;
-    private final long dataSize = 4;
-    private long loadFactor;
     private long buckets;
 
-    private long getHashBucket(Integer key) {
+    private long getHashBucket(String key) {
         long hash = key.hashCode();
         long alwaysPositive = hash ^ (hash >>> 32);
-        return Math.abs(hash) % (this.buckets - 1);
+        return Math.abs(alwaysPositive) % (this.buckets - 1);
     }
 
-    void putInt(Integer key) {
-
-        this.valueSegment.set((ValueLayout.OfInt) layout, this.position, key);
-        this.position += dataSize;
+    int getInt(String key) {
+        long hash = this.getHashBucket(key);
+        long valuePosition = hash * 4;
+        return this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4);
     }
 
-    Integer getInt(long pos) {
-        return this.valueSegment.get((ValueLayout.OfInt) this.layout, pos * dataSize);
+    void putInt(String key, Integer value) {
+        long keyPosition = this.keyStore.add(key);
+        long hash = this.getHashBucket(key);
+
+        long valuePosition = hash * 4;
+        this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition, (int) keyPosition);
+        this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, value);
     }
 
-    public DB(long size) {
+    public DB() {
         this.arena = Arena.ofAuto();
-        this.keySegment = this.arena.allocate(size * dataSize, dataSize);
-        this.valueSegment = this.arena.allocate(size * dataSize, dataSize);
-        this.position = 0;
-        this.loadFactor = 0;
-        this.buckets = size;
-        this.layout = ValueLayout.JAVA_INT;
+        this.keyStore = new KeyStore(this.arena);
+
+        long bytes = 100000;
+        this.valueSegment = this.arena.allocate(bytes, 4);
+        //Number of buckets is the total size on bytes / alignment
+        this.buckets = bytes/4;
     }
 }

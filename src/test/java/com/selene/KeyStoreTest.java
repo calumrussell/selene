@@ -12,7 +12,8 @@ class KeyStoreTest {
 
     @Test
     void testInsertingRetrieving() {
-        KeyStore store = new KeyStore();
+        Arena arena = Arena.ofAuto();
+        KeyStore store = new KeyStore(arena);
         long idx0 = store.add("test");
         assertEquals(new String(store.get(idx0)), "test");
         long idx1 = store.add("test2");
@@ -29,8 +30,9 @@ class KeyStoreTest {
 
     @Test
     void testInsertingLongString() {
+        Arena arena = Arena.ofAuto();
         //Insert value that will overflow initial size immediately
-        KeyStore store = new KeyStore();
+        KeyStore store = new KeyStore(arena);
         String longString = "gbmgvyroigvourovsgbjsemtraojcstceznwgytcfgemkteuyvcpfkdfyxfblgehneoxxssttwbjgykyaelyknxjmousjlmqtmghpg";
 
         long idx0 = store.add(longString);
@@ -39,9 +41,10 @@ class KeyStoreTest {
 
     @Test
     void testInsertThenOverflow() {
+        Arena arena = Arena.ofAuto();
         //Insert shorter value, then a longer one that should overflow
         String longString = "gbmgvyroigvourovsgbjsemtraojcstceznwgytcfgemkteuyvcpfkdfyxfblgehneoxxssttwbjgykyaelyknxjmousjlmqtmghpg";
-        KeyStore store = new KeyStore();
+        KeyStore store = new KeyStore(arena);
         long idx0 = store.add(longString);
         store.add("test");
         assertEquals(new String(store.get(idx0)), longString);

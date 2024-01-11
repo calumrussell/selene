@@ -30,7 +30,7 @@ public class KeyStore {
     private long lengthWritePosition;
 
     private void resizeLengthSegment() {
-        MemorySegment newSegment = this.arena.allocate(this.currentLengthSize * 2, 1);
+        MemorySegment newSegment = this.arena.allocate(this.currentLengthSize * 2 * 4, 4);
         newSegment.copyFrom(this.lengthSegment);
         this.lengthSegment = newSegment;
         this.currentLengthSize = this.currentLengthSize * 2;
@@ -60,7 +60,7 @@ public class KeyStore {
     }
 
     private boolean checkForLengthResize() {
-        return this.lengthWritePosition < this.currentLengthSize + 2;
+        return this.lengthWritePosition + 8 > this.currentLengthSize;
     }
 
     public long add(String key) {
@@ -88,12 +88,14 @@ public class KeyStore {
         return this.lengthWritePosition-8;
     }
 
-    public KeyStore() {
-        this.arena = Arena.ofAuto();
+    public KeyStore(Arena arena) {
+        // The arena for this comes from another owned data structure so KeyStore shouldn't worry about this reference
+        // becoming invalidated as KeyStore should be only created by a DB, and has lifetime at least as long as DB.
+        this.arena = arena;
         this.currentLengthSize = 100;
         this.currentValueSize = 100;
-        this.lengthSegment = this.arena.allocate(this.currentLengthSize, 4);
-        this.valueSegment = this.arena.allocate(this.currentValueSize, 1);
+        this.lengthSegment = arena.allocate(this.currentLengthSize * 4, 4);
+        this.valueSegment = arena.allocate(this.currentValueSize, 1);
         this.valueWritePosition = 0;
         this.lengthWritePosition = 0;
     }
