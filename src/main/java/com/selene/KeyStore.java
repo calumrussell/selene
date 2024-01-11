@@ -9,7 +9,9 @@ public class KeyStore {
     /*
         One of the potential problems here is that we are writing an INT and BYTE which are potentially misaligned
         if we are writing to the same MemorySegment when writing BYTE of length that aren't % 4. We can use
-        UNALIGNED ValueLayout but the docs seem to say this isn't a good idea and might not be portable.
+        UNALIGNED ValueLayout but the docs seem to say this isn't a good idea and might not be portable (for example,
+        long seems to have a size that can change between machines, so it makes sense not to use UNALIGNED ValueLayout
+        that will become unaligned on new machine).
 
         So the solution is to hold two MemorySegments, one that holds the INT length and this is used to index into the
         BYTE MemorySegment that is holding the actual key strings.
@@ -19,6 +21,9 @@ public class KeyStore {
     private long currentValueSize;
     private long currentLengthSize;
     private Arena arena;
+    // This is poorly named but it is [int, int] with the length of the string and the starting position of that string
+    // within the valueSegment. This is used because it makes sense to keep segments of single type. When you mix,
+    // it can lead to alignment problems.
     private MemorySegment lengthSegment;
     private MemorySegment valueSegment;
     private long valueWritePosition;
