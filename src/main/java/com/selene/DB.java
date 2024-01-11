@@ -5,8 +5,13 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
 public class DB {
+    /*
+        Off-heap data structure that stores String keys and Integer values.
 
-    // This is a off-heap data structure that stores a list of variable-length strings as bytes.
+        The String keys are offloaded to the KeyStore. The layout of memory is [int, int] representing the position of
+        the key in KeyStore and the integer stored at this value. The key itself is stored for addressing.
+     */
+
     private final KeyStore keyStore;
     private final Arena arena;
     private final MemorySegment valueSegment;
