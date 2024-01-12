@@ -1,10 +1,7 @@
 package com.selene;
 
-import com.sun.jdi.Value;
 import org.junit.jupiter.api.Test;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.ValueLayout;
 import java.util.HashMap;
 import java.util.Random;
 
