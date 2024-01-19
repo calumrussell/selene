@@ -34,7 +34,9 @@ class DBTest {
         db.putInt("fake", 100);
         db.putInt("another", 100);
         db.putInt("fake", 200);
+        db.putInt("another", 200);
         assertEquals(200, db.getInt("fake").get());
+        assertEquals(200, db.getInt("another").get());
     }
 
     @Test

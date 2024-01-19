@@ -94,11 +94,11 @@ public class KeyStore {
         // The arena for this comes from another owned data structure so KeyStore shouldn't worry about this reference
         // becoming invalidated as KeyStore should be only created by a DB, and has lifetime at least as long as DB.
         this.arena = arena;
-        this.currentLengthSize = size;
-        this.currentValueSize = size;
+        this.currentLengthSize = size+1;
+        this.currentValueSize = size+1;
         this.lengthSegment = arena.allocate(this.currentLengthSize * 4, 4);
         this.valueSegment = arena.allocate(this.currentValueSize, 1);
-        this.valueWritePosition = 0;
-        this.lengthWritePosition = 0;
+        this.valueWritePosition = 1;
+        this.lengthWritePosition = 4;
     }
 }
