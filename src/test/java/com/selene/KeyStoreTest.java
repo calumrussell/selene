@@ -3,8 +3,6 @@ package com.selene;
 import org.junit.jupiter.api.Test;
 
 import java.lang.foreign.Arena;
-import java.lang.foreign.ValueLayout;
-import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,7 +11,7 @@ class KeyStoreTest {
     @Test
     void testInsertingRetrieving() {
         Arena arena = Arena.ofAuto();
-        KeyStore store = new KeyStore(arena);
+        KeyStore store = new KeyStore(arena, 100);
         long idx0 = store.add("test");
         assertEquals(new String(store.get(idx0)), "test");
         long idx1 = store.add("test2");
@@ -32,7 +30,7 @@ class KeyStoreTest {
     void testInsertingLongString() {
         Arena arena = Arena.ofAuto();
         //Insert value that will overflow initial size immediately
-        KeyStore store = new KeyStore(arena);
+        KeyStore store = new KeyStore(arena, 10);
         String longString = "gbmgvyroigvourovsgbjsemtraojcstceznwgytcfgemkteuyvcpfkdfyxfblgehneoxxssttwbjgykyaelyknxjmousjlmqtmghpg";
 
         long idx0 = store.add(longString);
@@ -44,7 +42,7 @@ class KeyStoreTest {
         Arena arena = Arena.ofAuto();
         //Insert shorter value, then a longer one that should overflow
         String longString = "gbmgvyroigvourovsgbjsemtraojcstceznwgytcfgemkteuyvcpfkdfyxfblgehneoxxssttwbjgykyaelyknxjmousjlmqtmghpg";
-        KeyStore store = new KeyStore(arena);
+        KeyStore store = new KeyStore(arena, 100);
         long idx0 = store.add(longString);
         store.add("test");
         assertEquals(new String(store.get(idx0)), longString);

@@ -11,12 +11,12 @@ class DBTest {
 
     @Test
     void testHashMap() {
-        HashMap<String, Integer> map = new HashMap<>(100);
+        HashMap<String, Integer> map = new HashMap<>(10000);
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 5;
 
-        for (int i = 1; i < 1000; i++) {
+        for (int i = 1; i < 100000; i++) {
             Random random = new Random();
             String generatedString = random.ints(leftLimit, rightLimit + 1)
                     .limit(targetStringLength)
@@ -28,14 +28,23 @@ class DBTest {
     }
 
     @Test
+    void testRepeatedValues() {
+        DB db = new DB(10);
+
+        db.putInt("fake", 100);
+        db.putInt("another", 100);
+        db.putInt("fake", 200);
+        assertEquals(200, db.getInt("fake").get());
+    }
+
+    @Test
     void testInsert() {
-        DB db = new DB(100);
+        DB db = new DB(100000);
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 5;
 
-        for (int i = 1; i < 10000; i++) {
-
+        for (int i = 1; i < 100000; i++) {
             Random random = new Random();
             String generatedString = random.ints(leftLimit, rightLimit + 1)
                     .limit(targetStringLength)

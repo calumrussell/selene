@@ -56,8 +56,7 @@ public class DB {
     private long getHashBucket(String key, long buckets) {
         // buckets is a param because we want to calculate hash with a different value when we are resizing
         long hash = key.hashCode();
-        long alwaysPositive = hash ^ (hash >>> 32);
-        return Math.abs(alwaysPositive) % (buckets - 1);
+        return Math.abs(hash) % buckets;
     }
 
     Optional<Integer> getInt(String key) {
@@ -95,7 +94,6 @@ public class DB {
             this.resizeValueSegment();
         }
 
-        long keyPosition = this.keyStore.add(key);
         long hash = this.getHashBucket(key, buckets);
 
         // Check if bucket has value, if there is a value move forward 8 bytes until we find a free bucket
@@ -105,7 +103,7 @@ public class DB {
             int bucketKey = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition);
             int bucketValue = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4);
             if (bucketKey != 0 && bucketValue != 0) {
-                if (valuePosition + 8 >= this.buckets * 8) {
+                if (valuePosition + 8 > this.buckets * 8) {
                     valuePosition = 0;
                 } else {
                     valuePosition += 8;
@@ -114,6 +112,8 @@ public class DB {
                 foundEmptyPosition = true;
             }
         }
+
+        long keyPosition = this.keyStore.add(key);
         this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition, (int) keyPosition);
         this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, value);
         this.loadFactor = this.loadFactor + (float) 1 / this.buckets;
@@ -121,9 +121,9 @@ public class DB {
 
     public DB(long size) {
         this.arena = Arena.ofConfined();
-        this.keyStore = new KeyStore(this.arena);
+        this.keyStore = new KeyStore(this.arena, size);
 
-        //Each bucket is 8 bytes long, we multiply the number of buckets by 4 to allocate the memory.
+        //Each bucket is 8 bytes long, we multiply the number of buckets by 8 to allocate the memory.
         this.buckets = size;
         this.valueSegment = this.arena.allocate(buckets * 8, 4);
         this.loadFactor = 0;
