@@ -19,7 +19,7 @@ public class DB {
     private final Arena arena;
     private MemorySegment valueSegment;
     private long buckets;
-    private float loadFactor;
+    private long filledBuckets;
 
     private void resizeValueSegment() {
         // When resizing we need to go through all the values that currently exist and re-insert them as the hash might
@@ -28,6 +28,7 @@ public class DB {
 
         long newLoadFactor = 0;
         long newBucketSize = this.buckets * 2;
+        long newFilledBuckets = 0;
         MemorySegment newSegment = this.arena.allocate(newBucketSize * 8, 4);
 
         for (int i = 0; i < this.buckets; i++) {
@@ -45,10 +46,11 @@ public class DB {
                 newSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, bucketValue);
 
                 newLoadFactor = newLoadFactor + 1 / newBucketSize;
+                newFilledBuckets++;
             }
         }
         this.buckets = newBucketSize;
-        this.loadFactor = newLoadFactor;
+        this.filledBuckets = newFilledBuckets;
         this.valueSegment = newSegment;
 
     }
@@ -89,8 +91,12 @@ public class DB {
         }
     }
 
+    private double getLoadFactor() {
+        return (double) this.filledBuckets/ (double) this.buckets;
+    }
+
     void putInt(String key, Integer value) {
-        if (this.loadFactor > 0.55) {
+        if (this.getLoadFactor() > 0.55) {
             this.resizeValueSegment();
         }
 
@@ -116,7 +122,7 @@ public class DB {
         long keyPosition = this.keyStore.add(key);
         this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition, (int) keyPosition);
         this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, value);
-        this.loadFactor = this.loadFactor + (float) 1 / this.buckets;
+        this.filledBuckets++;
     }
 
     public DB(long size) {
@@ -125,7 +131,7 @@ public class DB {
 
         //Each bucket is 8 bytes long, we multiply the number of buckets by 8 to allocate the memory.
         this.buckets = size;
+        this.filledBuckets = 0;
         this.valueSegment = this.arena.allocate(buckets * 8, 4);
-        this.loadFactor = 0;
     }
 }
