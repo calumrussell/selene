@@ -103,19 +103,26 @@ public class DB {
         long hash = this.getHashBucket(key, buckets);
 
         // Check if bucket has value, if there is a value move forward 8 bytes until we find a free bucket
-        boolean foundEmptyPosition = false;
         long valuePosition = hash * 8;
-        while (!foundEmptyPosition) {
+        while (true) {
             int bucketKey = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition);
             int bucketValue = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4);
             if (bucketKey != 0 && bucketValue != 0) {
-                if (valuePosition + 8 > this.buckets * 8) {
-                    valuePosition = 0;
+                // If there is already a value here then we need to check whether the key already exists. If it does
+                // then we update the keyPosition and the value
+                String bucketKeyString = new String(this.keyStore.get(bucketKey));
+                if (bucketKeyString.equals(key)) {
+                    break;
                 } else {
-                    valuePosition += 8;
+
+                    if (valuePosition + 8 > this.buckets * 8) {
+                        valuePosition = 0;
+                    } else {
+                        valuePosition += 8;
+                    }
                 }
             } else {
-                foundEmptyPosition = true;
+                break;
             }
         }
 
