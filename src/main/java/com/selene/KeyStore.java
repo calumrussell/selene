@@ -17,7 +17,6 @@ public class KeyStore {
         BYTE MemorySegment that is holding the actual key strings.
      */
 
-    private static final long INT_SIZE = 4;
     private long currentValueSize;
     private long currentLengthSize;
     private Arena arena;
