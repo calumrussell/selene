@@ -1,8 +1,7 @@
 package com.selene;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
+import java.lang.foreign.*;
+import java.lang.invoke.VarHandle;
 import java.util.Optional;
 
 public class DB {
@@ -20,37 +19,46 @@ public class DB {
     private MemorySegment valueSegment;
     private long buckets;
     private long filledBuckets;
+    private final MemoryLayout memoryLayout;
+    private SequenceLayout sequenceLayout;
+    private VarHandle keyStorePositionHandle;
+    private VarHandle valueHandle;
 
     private void resizeValueSegment() {
         // When resizing we need to go through all the values that currently exist and re-insert them as the hash might
         // have changed. We only need to move the valueSegment, the values in the KeyStore can stay in the same place,
         // we just retrieve the value for rehashing.
 
-        long newLoadFactor = 0;
         long newBucketSize = this.buckets * 2;
         long newFilledBuckets = 0;
-        MemorySegment newSegment = this.arena.allocate(newBucketSize * 8, 4);
 
-        for (int i = 0; i < this.buckets; i++) {
-            int position = i * 8;
-            int bucketKey = this.valueSegment.get(ValueLayout.JAVA_INT, position);
-            int bucketValue = this.valueSegment.get(ValueLayout.JAVA_INT, position + 4);
+        SequenceLayout newSequenceLayout = MemoryLayout.sequenceLayout(newBucketSize, this.memoryLayout);
+        VarHandle newKeyStorePositionHandle = newSequenceLayout.varHandle(MemoryLayout.PathElement.sequenceElement(),
+                MemoryLayout.PathElement.groupElement("keyStorePosition"));
+        VarHandle newValueHandle = newSequenceLayout.varHandle(MemoryLayout.PathElement.sequenceElement(),
+                MemoryLayout.PathElement.groupElement("value"));
+        MemorySegment newSegment = this.arena.allocate(newSequenceLayout);
+
+        for (int i = 0; i < this.sequenceLayout.elementCount(); i++) {
+            int bucketKey = (int) this.keyStorePositionHandle.get(this.valueSegment, i);
+            int bucketValue = (int) this.valueHandle.get(this.valueSegment, i);
             if (bucketKey!=0 && bucketValue!=0) {
                 // This doesn't work if we have a collision
 
                 String key = new String(this.keyStore.get(bucketKey));
                 long newHash = this.getHashBucket(key, newBucketSize);
-                long valuePosition = newHash * 8;
 
-                newSegment.set(ValueLayout.JAVA_INT, valuePosition, bucketKey);
-                newSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, bucketValue);
+                newKeyStorePositionHandle.set(newSegment, newHash, bucketKey);
+                newValueHandle.set(newSegment, newHash, bucketValue);
 
-                newLoadFactor = newLoadFactor + 1 / newBucketSize;
                 newFilledBuckets++;
             }
         }
         this.buckets = newBucketSize;
         this.filledBuckets = newFilledBuckets;
+        this.sequenceLayout = newSequenceLayout;
+        this.keyStorePositionHandle = newKeyStorePositionHandle;
+        this.valueHandle = newValueHandle;
         this.valueSegment = newSegment;
 
     }
@@ -63,12 +71,11 @@ public class DB {
 
     Optional<Integer> getInt(String key) {
         long hash = this.getHashBucket(key, this.buckets);
-        long valuePosition = hash * 8;
 
         // We will eventually find the value or an empty bucket
         while (true) {
-            int bucketKey = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition);
-            int bucketValue = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4);
+            int bucketKey = (int) this.keyStorePositionHandle.get(this.valueSegment, hash);
+            int bucketValue = (int) this.valueHandle.get(this.valueSegment, hash);
             if (bucketKey == 0 && bucketValue == 0) {
                 // Value doesn't exist
                 return Optional.empty();
@@ -78,13 +85,13 @@ public class DB {
                 // Check if it matches
                 if (bucketKeyString.equals(key)) {
                     // Found a match, return the value
-                    return Optional.of(this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4));
+                    return Optional.of((int) this.valueHandle.get(this.valueSegment, hash));
                 } else {
                     // Doesn't match, look in next bucket
-                    if (valuePosition + 8 >= this.buckets * 8) {
-                        valuePosition = 0;
+                    if (hash >= this.buckets - 1) {
+                        hash = 0;
                     } else {
-                        valuePosition += 8;
+                        hash++;
                     }
                 }
             }
@@ -102,11 +109,9 @@ public class DB {
 
         long hash = this.getHashBucket(key, buckets);
 
-        // Check if bucket has value, if there is a value move forward 8 bytes until we find a free bucket
-        long valuePosition = hash * 8;
         while (true) {
-            int bucketKey = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition);
-            int bucketValue = this.valueSegment.get(ValueLayout.JAVA_INT, valuePosition + 4);
+            int bucketKey = (int) this.keyStorePositionHandle.get(this.valueSegment, hash);
+            int bucketValue = (int) this.valueHandle.get(this.valueSegment, hash);
             if (bucketKey != 0 && bucketValue != 0) {
                 // If there is already a value here then we need to check whether the key already exists. If it does
                 // then we update the keyPosition and the value
@@ -114,11 +119,10 @@ public class DB {
                 if (bucketKeyString.equals(key)) {
                     break;
                 } else {
-
-                    if (valuePosition + 8 > this.buckets * 8) {
-                        valuePosition = 0;
+                    if (hash >= this.buckets - 1) {
+                        hash = 0;
                     } else {
-                        valuePosition += 8;
+                        hash++;
                     }
                 }
             } else {
@@ -127,18 +131,29 @@ public class DB {
         }
 
         long keyPosition = this.keyStore.add(key);
-        this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition, (int) keyPosition);
-        this.valueSegment.set(ValueLayout.JAVA_INT, valuePosition + 4, value);
+        this.keyStorePositionHandle.set(this.valueSegment, hash, (int) keyPosition);
+        this.valueHandle.set(this.valueSegment, hash, value);
         this.filledBuckets++;
     }
 
     public DB(long size) {
+
+        this.memoryLayout = MemoryLayout.structLayout(
+                ValueLayout.JAVA_INT.withName("keyStorePosition"),
+                ValueLayout.JAVA_INT.withName("value")
+        );
+        this.sequenceLayout = MemoryLayout.sequenceLayout(size, this.memoryLayout);
+        this.keyStorePositionHandle = this.sequenceLayout.varHandle(MemoryLayout.PathElement.sequenceElement(),
+                MemoryLayout.PathElement.groupElement("keyStorePosition"));
+        this.valueHandle = this.sequenceLayout.varHandle(MemoryLayout.PathElement.sequenceElement(),
+                MemoryLayout.PathElement.groupElement("value"));
+
         this.arena = Arena.ofConfined();
         this.keyStore = new KeyStore(this.arena, size);
 
-        //Each bucket is 8 bytes long, we multiply the number of buckets by 8 to allocate the memory.
         this.buckets = size;
         this.filledBuckets = 0;
-        this.valueSegment = this.arena.allocate(buckets * 8, 4);
+
+        this.valueSegment = this.arena.allocate(this.sequenceLayout);
     }
 }
