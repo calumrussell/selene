@@ -1,7 +1,6 @@
 package com.selene;
 
 import java.lang.foreign.*;
-import java.lang.invoke.VarHandle;
 import java.util.Optional;
 
 public class DB {
@@ -79,8 +78,8 @@ public class DB {
 
         // We will eventually find the value or an empty bucket
         while (true) {
-            int bucketKey = this.getKeyStorePosition(this.valueSegment, hash);
-            int bucketValue = this.getValue(this.valueSegment, hash);
+            int bucketKey = DB.getKeyStorePosition(this.valueSegment, hash);
+            int bucketValue = DB.getValue(this.valueSegment, hash);
             if (bucketKey == 0 && bucketValue == 0) {
                 // Value doesn't exist
                 return Optional.empty();
@@ -90,7 +89,7 @@ public class DB {
                 // Check if it matches
                 if (bucketKeyString.equals(key)) {
                     // Found a match, return the value
-                    int value = this.getValue(this.valueSegment, hash);
+                    int value = DB.getValue(this.valueSegment, hash);
                     return Optional.of(value);
                 } else {
                     // Doesn't match, look in next bucket
@@ -116,8 +115,8 @@ public class DB {
         long hash = this.getHashBucket(key, buckets);
 
         while (true) {
-            int bucketKey = this.getKeyStorePosition(this.valueSegment, hash);
-            int bucketValue = this.getValue(this.valueSegment, hash);
+            int bucketKey = DB.getKeyStorePosition(this.valueSegment, hash);
+            int bucketValue = DB.getValue(this.valueSegment, hash);
             if (bucketKey != 0 && bucketValue != 0) {
                 // If there is already a value here then we need to check whether the key already exists. If it does
                 // then we update the keyPosition and the value
@@ -137,8 +136,8 @@ public class DB {
         }
 
         long keyPosition = this.keyStore.add(key);
-        this.setKeyStorePosition(this.valueSegment, hash, (int) keyPosition);
-        this.setValue(this.valueSegment, hash, value);
+        DB.setKeyStorePosition(this.valueSegment, hash, (int) keyPosition);
+        DB.setValue(this.valueSegment, hash, value);
         this.filledBuckets++;
     }
 
