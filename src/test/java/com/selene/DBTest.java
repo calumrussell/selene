@@ -11,7 +11,7 @@ class DBTest {
 
     @Test
     void testHashMap() {
-        HashMap<String, Integer> map = new HashMap<>(10000);
+        HashMap<String, Integer> map = new HashMap<>(100000);
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 5;
