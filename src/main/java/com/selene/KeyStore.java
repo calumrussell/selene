@@ -47,13 +47,8 @@ public class KeyStore {
     public byte[] get(long offset) {
         // offset is the real starting position within the memory segment, not an index into array-like
         long length = this.lengthSegment.get(ValueLayout.JAVA_INT, offset);
-        long startingPositon = this.lengthSegment.get(ValueLayout.JAVA_INT, offset+ 4);
-
-        byte[] result = new byte[(int) length];
-        for (int i=0; i < length; i++) {
-            result[i] = this.valueSegment.get(ValueLayout.JAVA_BYTE, startingPositon + i);
-        }
-        return result;
+        long startingPosition = this.lengthSegment.get(ValueLayout.JAVA_INT, offset+ 4);
+        return this.valueSegment.asSlice(startingPosition, length).toArray(ValueLayout.JAVA_BYTE);
     }
 
     private boolean checkForValueResize(int newStringLength) {

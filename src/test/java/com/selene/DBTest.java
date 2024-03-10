@@ -11,12 +11,12 @@ class DBTest {
 
     @Test
     void testHashMap() {
-        HashMap<String, Integer> map = new HashMap<>(100000);
+        HashMap<String, Integer> map = new HashMap<>(1000000);
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 5;
 
-        for (int i = 1; i < 100000; i++) {
+        for (int i = 1; i < 1000000; i++) {
             Random random = new Random();
             String generatedString = random.ints(leftLimit, rightLimit + 1)
                     .limit(targetStringLength)
@@ -41,12 +41,12 @@ class DBTest {
 
     @Test
     void testInsert() {
-        DB db = new DB(100000);
+        DB db = new DB(1000000);
         int leftLimit = 97; // letter 'a'
         int rightLimit = 122; // letter 'z'
         int targetStringLength = 5;
 
-        for (int i = 1; i < 100000; i++) {
+        for (int i = 1; i < 1000000; i++) {
             Random random = new Random();
             String generatedString = random.ints(leftLimit, rightLimit + 1)
                     .limit(targetStringLength)
